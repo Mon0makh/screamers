@@ -20,9 +20,8 @@ from telegram.ext import MessageHandler
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
 
-from config import TG_TOKEN
-from config import MONGODB_LINK
-from config import MONGO_DB
+from config import TG_TOKEN, MONGO_DB, MONGODB_LINK, PIN_CODE
+
 
 from keyboards import *
 
@@ -49,34 +48,56 @@ def on_start(update: Update, context: CallbackContext):
         reply_markup=REPLY_KEYBOARD_MARKUP
     )
 
-def send_runner_nunmber():
+async def send_runner_nunmber(number: str):
     pass
 
 
 runners_code = {}
 
+pins = {}
 
 def handle_text(update: Update, context: CallbackContext):
     message = update.message
     query = update.callback_query
     text = update.message.text
 
-    if text.isdigit and len(text) == 1:
-        if message.chat.id in runners_code.keys():
+    if message.chat.id in runners_code.keys():
+        if text.isdigit and len(text) == 1:
             runners_code[message.chat.id] += text
-        else:
-            runners_code[message.chat.id] = ""
-            runners_code[message.chat.id] += text
-    elif text == "DEL":
-        if message.chat.id in runners_code.keys():
+        elif text == "DEL":
             if len(runners_code[message.chat.id]) > 0:
                 runners_code[message.chat.id] = runners_code[message.chat.id][:-1]
-    elif text == "OK":
-        if message.chat.id in runners_code.keys():
+        elif text == "OK":
             if len(runners_code[message.chat.id]) > 0:
+                
                 message.reply_text(
                     'Номер: ' + runners_code[message.chat.id]
                 )
+                runners_code[message.chat.id] = ""
+
+    else:
+        if message.chat.id in pins.keys():
+            if text.isdigit and len(text) == 1:
+                pins[message.chat.id] += text
+            elif text == "DEL":
+                if len(pins[message.chat.id]) > 0:
+                    pins[message.chat.id] = pins[message.chat.id][:-1]
+            elif text == "OK":
+                if len(pins[message.chat.id]) > 0:
+                    if pins[message.chat.id] == PIN_CODE:
+                        runners_code[message.chat.id] = ""
+                        message.reply_text(
+                            'Вход выполнен! ' 
+                        )
+                    else:
+                        pins[message.chat.id] = ""
+                        message.reply_text(
+                            'Неверный Пин-Код! Попробуйте ещё раз!' 
+                        )
+        else:
+            if text.isdigit and len(text) == 1:
+                pins[message.chat.id] = ""
+                pins[message.chat.id] += text
     print(runners_code)
 
 
