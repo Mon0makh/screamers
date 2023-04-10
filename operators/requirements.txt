@@ -1,0 +1,6 @@
+python-telegram-bot==12.8.0
+sentry-sdk==0.14.3
+pymongo[srv]
+pyTelegramBotAPI==3.7.6
+ujson==4.0.2
+dnspython==1.16.0  
