@@ -5,6 +5,9 @@
 # Import
 from pymongo import MongoClient
 
+
+
+import uvicorn
 import logging
 
 
@@ -20,13 +23,12 @@ from telegram.ext import MessageHandler
 from telegram.ext import Filters
 from telegram.ext import CallbackContext
 
-from config import TG_TOKEN
-from config import MONGODB_LINK
-from config import MONGO_DB
-
 from keyboards import *
+from config import TG_TOKEN, MONGODB_LINK, MONGO_DB, SERVER_HOST, SERVER_PORT
 
 import certifi
+
+
 
 ca = certifi.where()
 # tele_Bot = telebot.TeleBot(TG_TOKEN, parse_mode=None)
@@ -35,30 +37,53 @@ ca = certifi.where()
 # Bot Logic
 # -------------------------------
 
-# bot = Bot(TG_TOKEN)
+bot = Bot(TG_TOKEN)
 
 # Connect to DataBase
-mondb = MongoClient(MONGODB_LINK, tlsCAFile=ca)[MONGO_DB]
+mondb = MongoClient(MONGODB_LINK)[MONGO_DB]
 
-cursor = mondb.runners.watch()
-document = next(cursor)
+# cursor = mondb.runners.watch()
+# document = next(cursor)
 
-print(cursor)
+# print(cursor)
+
+
+screamers_id = []
+
+async def send_runner_number(name: str):
+    print(name)
+    bot.send_message(chat_id=screamers_id[0], text=name)
+    
+
+resume_token = None
+pipeline = [{'$match': {'operationType': 'update'}}]
+with mondb.runners.watch() as stream:
+    while stream.alive:
+        change = stream.try_next()
+        # Note that the ChangeStream's resume token may be updated
+        # even when no changes are returned.
+        if change is not None:
+            print(change)
+            runner = mondb.runners.find_one({'_id' : change['documentKey']['_id']})
+            send_runner_number(runner['Name'])
+            continue
+
+
+
+
 
 
 def on_start(update: Update, context: CallbackContext):
     message = update.message
-
+    screamers_id.append[message.chat.id]
     message.reply_text(
-        'Операторская система ввода данных. Вы не авторизованны пожалуйста введите пинкод.',
+        'Вы авторизованы! ',
         reply_markup=REPLY_KEYBOARD_MARKUP
     )
 
-def send_runner_nunmber():
-    pass
 
 
-screamers_id = {}
+
 
 
 def handle_text(update: Update, context: CallbackContext):
@@ -66,23 +91,25 @@ def handle_text(update: Update, context: CallbackContext):
     query = update.callback_query
     text = update.message.text
 
-    if text.isdigit and len(text) == 1:
-        if message.chat.id in runners_code.keys():
-            runners_code[message.chat.id] += text
-        else:
-            runners_code[message.chat.id] = ""
-            runners_code[message.chat.id] += text
-    elif text == "DEL":
-        if message.chat.id in runners_code.keys():
-            if len(runners_code[message.chat.id]) > 0:
-                runners_code[message.chat.id] = runners_code[message.chat.id][:-1]
-    elif text == "OK":
-        if message.chat.id in runners_code.keys():
-            if len(runners_code[message.chat.id]) > 0:
-                message.reply_text(
-                    'Номер: ' + runners_code[message.chat.id]
-                )
-    print(runners_code)
+    # if text.isdigit and len(text) == 1:
+    #     if message.chat.id in runners_code.keys():
+    #         runners_code[message.chat.id] += text
+    #     else:
+    #         runners_code[message.chat.id] = ""
+    #         runners_code[message.chat.id] += text
+    # elif text == "DEL":
+    #     if message.chat.id in runners_code.keys():
+    #         if len(runners_code[message.chat.id]) > 0:
+    #             runners_code[message.chat.id] = runners_code[message.chat.id][:-1]
+    # elif text == "OK":
+    #     if message.chat.id in runners_code.keys():
+    #         if len(runners_code[message.chat.id]) > 0:
+    #             message.reply_text(
+    #                 'Номер: ' + runners_code[message.chat.id]
+    #             )
+    # print(runners_code)
+
+
 
 
 
@@ -99,7 +126,8 @@ def keyboard_call_handler(update: Update, context: CallbackContext):
     # elif data == CALLBACK_MM_HUB:
     #     pass
 
-def main():
+
+async def main():
     updater = Updater(
         token=TG_TOKEN,
         use_context=True,
@@ -112,5 +140,5 @@ def main():
     updater.idle()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

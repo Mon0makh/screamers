@@ -4,7 +4,7 @@
 # Prod bot
 TG_TOKEN = '5614431192:AAGYkl28GmJgfnK_6Y6g_UW1hrDUBvY0-CA'
 
-MONGODB_LINK = "mongodb+srv://Altair8:neiQRDwaAGS6ay1a@altair8cluster.htdco.mongodb.net/HUB?retryWrites=true&w=majority"
-MONGO_DB = "HUB"
+MONGODB_LINK = "mongodb+srv://admin-v2:dTEJ8hum0jfTH8bH@testcluster.prws5fu.mongodb.net/test"
+MONGO_DB = "screamers"
 
 PIN_CODE="11111"

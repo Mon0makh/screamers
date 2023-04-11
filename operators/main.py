@@ -5,6 +5,8 @@
 # Import
 from pymongo import MongoClient
 
+import requests
+
 import logging
 
 
@@ -36,25 +38,29 @@ ca = certifi.where()
 
 # bot = Bot(TG_TOKEN)
 
-# Connect to DataBase
-#mondb = MongoClient(MONGODB_LINK, tlsCAFile=ca)[MONGO_DB]
+runners_code = {}
+
+pins = {}
+
+def getNumberRequest(numb: int):
+    x = requests.get('http://127.0.0.1:8090/numb/?numb=' + numb)
+    print(x.status_code)
+
 
 
 def on_start(update: Update, context: CallbackContext):
     message = update.message
+    if message.chat.id in runners_code.keys():
+        message.reply_text(
+            'Вы авторизованы! ',
+            reply_markup=REPLY_KEYBOARD_MARKUP
+        )
+    else: 
+         message.reply_text(
+            'Добро пожаловать! Пожалуйста введите Пин-код. ',
+            reply_markup=REPLY_KEYBOARD_MARKUP
+        )
 
-    message.reply_text(
-        'Операторская система ввода данных. Вы не авторизованны пожалуйста введите пинкод.',
-        reply_markup=REPLY_KEYBOARD_MARKUP
-    )
-
-async def send_runner_nunmber(number: str):
-    pass
-
-
-runners_code = {}
-
-pins = {}
 
 def handle_text(update: Update, context: CallbackContext):
     message = update.message
@@ -69,7 +75,7 @@ def handle_text(update: Update, context: CallbackContext):
                 runners_code[message.chat.id] = runners_code[message.chat.id][:-1]
         elif text == "OK":
             if len(runners_code[message.chat.id]) > 0:
-                
+                getNumberRequest(runners_code[message.chat.id])
                 message.reply_text(
                     'Номер: ' + runners_code[message.chat.id]
                 )
@@ -102,19 +108,6 @@ def handle_text(update: Update, context: CallbackContext):
 
 
 
-# Telegram inline menu buttons handler
-def keyboard_call_handler(update: Update, context: CallbackContext):
-    query = update.callback_query
-    data = query.data
-
-    # if data == CALLBACK_MM:
-    #     query.edit_message_text(
-    #         text="Основное меню: ",
-    #         reply_markup=get_main_menu()
-    #     )
-    # elif data == CALLBACK_MM_HUB:
-    #     pass
-
 def main():
     updater = Updater(
         token=TG_TOKEN,
@@ -122,7 +115,7 @@ def main():
     )
     dp = updater.dispatcher
     dp.add_handler(CommandHandler('start', on_start))
-    dp.add_handler(CallbackQueryHandler(callback=keyboard_call_handler, pass_chat_data=True))
+    #dp.add_handler(CallbackQueryHandler(callback=keyboard_call_handler, pass_chat_data=True))
     dp.add_handler(MessageHandler(Filters.text, handle_text))
     updater.start_polling()
     updater.idle()

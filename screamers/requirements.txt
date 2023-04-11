@@ -4,3 +4,9 @@ pymongo[srv]
 pyTelegramBotAPI==3.7.6
 ujson==4.0.2
 dnspython==1.16.0  
+fastapi==0.79.0
+uvicorn[standard]==0.18.2
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+requests
