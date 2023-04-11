@@ -15,20 +15,40 @@ import (
 )
 
 var bot *tgbotapi.BotAPI
-var chatsList [50]int64
+var chatsList [15]int64
 var screamersCount = 0
 var sendedNow = 1
 var senedPhrase = 0
+
+var coordinatorId int64
+var haveCoord = false
+
+var messagesMap = make(map[int64]map[int]int)
 
 var phrases [10]string
 
 var collection *mongo.Collection
 var ctx = context.TODO()
 
+var doneKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("Готово", "done"),
+	),
+)
+
 type Runner struct {
 	ID     primitive.ObjectID `bson:"_id"`
 	Name   string
 	number int64
+}
+
+func addToMap(m map[int64]map[int]int, screamerId int64, messageId int) {
+	mm, ok := m[screamerId]
+	if !ok {
+		mm = make(map[int]int)
+		m[screamerId] = mm
+	}
+	mm[messageId]++
 }
 
 func sendMessage(numb_id int64) {
@@ -48,25 +68,42 @@ func sendMessage(numb_id int64) {
 		}
 		var text_msg = ""
 		if senedPhrase < 4 {
-			text_msg = fmt.Sprintf("%d:\n %s", numb_id, fmt.Sprintf(phrases[senedPhrase], result.Name, result.Name))
+			text_msg = fmt.Sprintf("<b><u>%d</u></b>:\n %s", numb_id, fmt.Sprintf(phrases[senedPhrase], result.Name, result.Name))
 		} else if senedPhrase == 4 {
-			text_msg = fmt.Sprintf("%d:\n %s", numb_id, fmt.Sprintf(phrases[senedPhrase], result.Name, result.Name, result.Name, result.Name))
+			text_msg = fmt.Sprintf("<b><u>%d</u></b>:\n %s", numb_id, fmt.Sprintf(phrases[senedPhrase], result.Name, result.Name, result.Name, result.Name))
 		} else if senedPhrase > 4 && senedPhrase < 8 {
-			text_msg = fmt.Sprintf("%d:\n %s", numb_id, fmt.Sprintf(phrases[senedPhrase], result.Name, result.Name, result.Name, result.Name, result.Name, result.Name, result.Name, result.Name))
+			text_msg = fmt.Sprintf("<b><u>%d</u></b>:\n %s", numb_id, fmt.Sprintf(phrases[senedPhrase], result.Name, result.Name, result.Name, result.Name, result.Name, result.Name, result.Name, result.Name))
 		} else {
-			text_msg = fmt.Sprintf("%d:\n %s", numb_id, phrases[senedPhrase])
+			text_msg = fmt.Sprintf("<b><u>%d</u></b>:\n %s", numb_id, phrases[senedPhrase])
 			senedPhrase = -1
 		}
 
 		senedPhrase++
 		msg := tgbotapi.NewMessage(chatsList[sendedNow], text_msg)
+		msg.ReplyMarkup = doneKeyboard
+		msg.ParseMode = "HTML"
+
+		mess, err := bot.Send(msg)
+		if err != nil {
+			panic(err)
+		}
+
+		if haveCoord {
+			textMsgToCoordinator := fmt.Sprintf("Группа: %d\nБегун: %d %s", sendedNow, numb_id, result.Name)
+			msg := tgbotapi.NewMessage(coordinatorId, textMsgToCoordinator)
+
+			messCoord, err := bot.Send(msg)
+			if err != nil {
+				panic(err)
+			}
+			addToMap(messagesMap, chatsList[sendedNow], mess.MessageID)
+			messagesMap[chatsList[sendedNow]][mess.MessageID] = messCoord.MessageID
+		}
 
 		if sendedNow == screamersCount {
 			sendedNow = 0
 		}
 		sendedNow++
-
-		bot.Send(msg)
 	}
 }
 
@@ -120,14 +157,14 @@ func delFromScreamersList(id int64) bool {
 }
 
 func initPhrases() {
-	phrases[0] = "Бегать быстро %s умеет, никого не пожалеет!\n\nЖылдам жүгіріңіз %s қалай біледі,ешкімге өкініш!"
-	phrases[1] = "Беги всегда, беги везде — %s, беги к своей мечте!\n\nӘрқашан жүгіріңіз, барлық жерде жүгіріңіз %s, арманыңа жүгір!"
-	phrases[2] = "За победу надо драться — %s, тебе придётся постараться!\n\nЖеңіс үшін күресу керек%s, тырысу керек!"
-	phrases[3] = "Побеждать — твоя судьба! %s, победи всех как всегда!\n\nЖеңіс - сіздің тағдырыңыз!%s, әдеттегідей бәрін жең!"
-	phrases[4] = "Эй, %s, ты не на прогулке!\nДавай %s, шевели булками!\n\nЭй %s, сіз серуендеуге шыққан жоқсыз!\nКеліңіздер %s, орамдарды жылжытыңыз!"
-	phrases[5] = "Оббеги хоть всю планету, \nБыстрее %s в мире нету.\n %s - вперед!\n %s - давай!\n %s - беги, не засыпай!\n\nБүкіл планетаны айналып жүгіріңіз\nӘлемде жылдам %s жоқ.\n %s - алға!\n %s - келіңіз!\n %s - жүгір, ұйықтап қалма!"
-	phrases[6] = "Кто забыл фразу «ой, всё, не могу…»?! %s\nКто шепчет себе «я добегу!»?! %s\nКто победит на раз и два! %s\nВыше нос %s! Ура! Ура!\n\n«Ой, болды, мен алмаймын...» дегенді ұмытқан кім?! %s\n«Мен жүгіремін!» деп сыбырлайтын кім бар?! %s\nБір және екеуі кім жеңеді! %s\nМұрын жоғары %s! Ура! Ура!"
-	phrases[7] = "Кто всегда вперед стремится?! %s\nКто летит быстрее птицы?! %s\nСпортивный дух у у кого в крови?! %s\nДавай, %s! Всех, всех порви!\n\nКім әрқашан алға ұмтылады? %s\nҚұстан да жылдам ұшатын кім?! %s\nБіреудің қанында спорттық рух бар ма?! %s\nКеліңіздер, %s! Барлығын құртыңдар!"
+	phrases[0] = "Бегать быстро <b><u> %s </u></b> умеет, никого не пожалеет!\n\nЖылдам жүгіріңіз <b><u> %s </u></b> қалай біледі,ешкімге өкініш!"
+	phrases[1] = "Беги всегда, беги везде — <b><u> %s </u></b>, беги к своей мечте!\n\nӘрқашан жүгіріңіз, барлық жерде жүгіріңіз <b><u> %s </u></b>, арманыңа жүгір!"
+	phrases[2] = "За победу надо драться — <b><u> %s </u></b>, тебе придётся постараться!\n\nЖеңіс үшін күресу керек<b><u> %s </u></b>, тырысу керек!"
+	phrases[3] = "Побеждать — твоя судьба! <b><u> %s </u></b>, победи всех как всегда!\n\nЖеңіс - сіздің тағдырыңыз!<b><u> %s </u></b>, әдеттегідей бәрін жең!"
+	phrases[4] = "Эй, <b><u> %s </u></b>, ты не на прогулке!\nДавай <b><u> %s </u></b>, шевели булками!\n\nЭй <b><u> %s </u></b>, сіз серуендеуге шыққан жоқсыз!\nКеліңіздер <b><u> %s </u></b>, орамдарды жылжытыңыз!"
+	phrases[5] = "Оббеги хоть всю планету, \nБыстрее <b><u> %s </u></b> в мире нету.\n <b><u> %s </u></b> - вперед!\n <b><u> %s </u></b> - давай!\n <b><u> %s </u></b> - беги, не засыпай!\n\nБүкіл планетаны айналып жүгіріңіз\nӘлемде жылдам <b><u> %s </u></b> жоқ.\n <b><u> %s </u></b> - алға!\n <b><u> %s </u></b> - келіңіз!\n <b><u> %s </u></b> - жүгір, ұйықтап қалма!"
+	phrases[6] = "Кто забыл фразу «ой, всё, не могу…»?! <b><u> %s </u></b>\nКто шепчет себе «я добегу!»?! <b><u> %s </u></b>\nКто победит на раз и два! <b><u> %s </u></b>\nВыше нос <b><u> %s </u></b>! Ура! Ура!\n\n«Ой, болды, мен алмаймын...» дегенді ұмытқан кім?! <b><u> %s </u></b>\n«Мен жүгіремін!» деп сыбырлайтын кім бар?! <b><u> %s </u></b>\nБір және екеуі кім жеңеді! <b><u> %s </u></b>\nМұрын жоғары <b><u> %s </u></b>! Ура! Ура!"
+	phrases[7] = "Кто всегда вперед стремится?! <b><u> %s </u></b>\nКто летит быстрее птицы?! <b><u> %s </u></b>\nСпортивный дух у у кого в крови?! <b><u> %s </u></b>\nДавай, <b><u> %s </u></b>! Всех, всех порви!\n\nКім әрқашан алға ұмтылады? <b><u> %s </u></b>\nҚұстан да жылдам ұшатын кім?! <b><u> %s </u></b>\nБіреудің қанында спорттық рух бар ма?! <b><u> %s </u></b>\nКеліңіздер, <b><u> %s </u></b>! Барлығын құртыңдар!"
 	phrases[8] = "Раз, и два — бежать пора!\nТри, четыре — лучшим в мире!\nПять и шесть — в ком сила есть!\nСемь и восемь — темп не бросим!\nДевять, десять – победу разделим все вместе!\n\nБір, екі, жүгіретін уақыт келді!\nҮш, төрт - әлемдегі ең жақсы!\nБес пен алты – кімде билік бар!\nЖеті мен сегіз - қарқыннан бас тартпайық!\nТоғыз, он – жеңісті бірге бөлісейік!"
 }
 
@@ -170,7 +207,7 @@ func main() {
 	go http.ListenAndServe(":8090", nil)
 
 	for update := range updates {
-		if update.Message != nil { // If we got a message
+		if update.Message != nil {
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 
@@ -179,7 +216,7 @@ func main() {
 				if addToScreamersList(update.Message.Chat.ID) {
 					msg.Text = "Вы уже были добавлены в список получения!"
 				} else {
-					msg.Text = "Вы добавлены в список получения!"
+					msg.Text = fmt.Sprintf("Вы добавлены в список получения! Ваш номер: %d", screamersCount)
 				}
 			case "stop":
 				if delFromScreamersList(update.Message.Chat.ID) {
@@ -187,7 +224,10 @@ func main() {
 				} else {
 					msg.Text = "Вы уже были удалены из списка на получение!"
 				}
-
+			case "coord":
+				coordinatorId = update.Message.Chat.ID
+				haveCoord = true
+				msg.Text = "Вы назначены координатором!"
 			default:
 				msg.Text = "Ошибка! Команда не найдена!"
 			}
@@ -195,6 +235,28 @@ func main() {
 			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
 			bot.Send(msg)
+		} else if update.CallbackQuery != nil {
+
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
+
+			if _, err := bot.Request(callback); err != nil {
+				panic(err)
+			}
+
+			log.Printf("Message ID %d", update.CallbackQuery.Message.MessageID)
+
+			msg := tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID)
+			if _, err := bot.Request(msg); err != nil {
+				panic(err)
+			}
+
+			if haveCoord {
+				msg := tgbotapi.NewDeleteMessage(coordinatorId, messagesMap[update.CallbackQuery.Message.Chat.ID][update.CallbackQuery.Message.MessageID])
+				log.Printf("Coord Message ID %d", messagesMap[update.CallbackQuery.Message.Chat.ID][update.CallbackQuery.Message.MessageID])
+				if _, err := bot.Request(msg); err != nil {
+					panic(err)
+				}
+			}
 		}
 	}
 }
