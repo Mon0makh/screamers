@@ -32,7 +32,7 @@ var ctx = context.TODO()
 
 var doneKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Готово", "done"),
+		tgbotapi.NewInlineKeyboardButtonData("Готово ", "done"),
 	),
 )
 
@@ -227,7 +227,11 @@ func main() {
 			case "coord":
 				coordinatorId = update.Message.Chat.ID
 				haveCoord = true
+				delFromScreamersList(update.Message.Chat.ID)
 				msg.Text = "Вы назначены координатором!"
+			case "stopcoord":
+				haveCoord = false
+				msg.Text = "Координатор отключен!"
 			default:
 				msg.Text = "Ошибка! Команда не найдена!"
 			}
