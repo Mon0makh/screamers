@@ -23,8 +23,6 @@ var senedPhrase = 0
 var coordinatorId int64
 var haveCoord = false
 
-var messagesMap = make(map[int64]map[int]int)
-
 var phrases [10]string
 
 var collection *mongo.Collection
@@ -40,15 +38,6 @@ type Runner struct {
 	ID     primitive.ObjectID `bson:"_id"`
 	Name   string
 	number int64
-}
-
-func addToMap(m map[int64]map[int]int, screamerId int64, messageId int) {
-	mm, ok := m[screamerId]
-	if !ok {
-		mm = make(map[int]int)
-		m[screamerId] = mm
-	}
-	mm[messageId]++
 }
 
 func sendMessage(numb_id int64) {
@@ -83,8 +72,7 @@ func sendMessage(numb_id int64) {
 		msg.ReplyMarkup = doneKeyboard
 		msg.ParseMode = "HTML"
 
-		mess, err := bot.Send(msg)
-		if err != nil {
+		if _, err := bot.Send(msg); err != nil {
 			panic(err)
 		}
 
@@ -92,12 +80,10 @@ func sendMessage(numb_id int64) {
 			textMsgToCoordinator := fmt.Sprintf("Группа: %d\nБегун: %d %s", sendedNow, numb_id, result.Name)
 			msg := tgbotapi.NewMessage(coordinatorId, textMsgToCoordinator)
 
-			messCoord, err := bot.Send(msg)
-			if err != nil {
+			if _, err := bot.Send(msg); err != nil {
 				panic(err)
 			}
-			addToMap(messagesMap, chatsList[sendedNow], mess.MessageID)
-			messagesMap[chatsList[sendedNow]][mess.MessageID] = messCoord.MessageID
+
 		}
 
 		if sendedNow == screamersCount {
@@ -249,17 +235,11 @@ func main() {
 
 			log.Printf("Message ID %d", update.CallbackQuery.Message.MessageID)
 
-			msg := tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID)
+			msg := tgbotapi.NewEditMessageReplyMarkup(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, tgbotapi.InlineKeyboardMarkup{
+				InlineKeyboard: make([][]tgbotapi.InlineKeyboardButton, 0),
+			})
 			if _, err := bot.Request(msg); err != nil {
 				panic(err)
-			}
-
-			if haveCoord {
-				msg := tgbotapi.NewDeleteMessage(coordinatorId, messagesMap[update.CallbackQuery.Message.Chat.ID][update.CallbackQuery.Message.MessageID])
-				log.Printf("Coord Message ID %d", messagesMap[update.CallbackQuery.Message.Chat.ID][update.CallbackQuery.Message.MessageID])
-				if _, err := bot.Request(msg); err != nil {
-					panic(err)
-				}
 			}
 		}
 	}
