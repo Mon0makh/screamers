@@ -66,13 +66,14 @@ func sendMessage(numb_id int64) {
 			text_msg = fmt.Sprintf("<b><u>%d</u></b>:\n %s", numb_id, phrases[senedPhrase])
 			senedPhrase = -1
 		}
-
 		senedPhrase++
+
 		msg := tgbotapi.NewMessage(chatsList[sendedNow], text_msg)
 		msg.ReplyMarkup = doneKeyboard
 		msg.ParseMode = "HTML"
 
 		if _, err := bot.Send(msg); err != nil {
+			log.Printf("SEND ERROR %d", chatsList[sendedNow])
 			panic(err)
 		}
 
@@ -111,6 +112,16 @@ func headers(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func findInScreamersList(id int64) bool {
+	findFlag := false
+	for i := 1; i <= screamersCount; i++ {
+		if chatsList[i] == id {
+			findFlag = true
+		}
+	}
+	return findFlag
+}
+
 func addToScreamersList(id int64) bool {
 	findFlag := false
 	for i := 1; i <= screamersCount; i++ {
@@ -130,6 +141,7 @@ func delFromScreamersList(id int64) bool {
 	idIndex := 0
 	for i := 1; i <= screamersCount; i++ {
 		if chatsList[i] == id {
+			idIndex = i
 			findFlag = true
 		}
 	}
@@ -158,7 +170,8 @@ func main() {
 	initPhrases()
 	// BOT
 	var err error
-	bot, err = tgbotapi.NewBotAPI("5707889035:AAFQ1tEPMMUUfnp5cN4IWF68iwcIBOOUK6A")
+	//bot, err = tgbotapi.NewBotAPI("5707889035:AAFQ1tEPMMUUfnp5cN4IWF68iwcIBOOUK6A")
+	bot, err = tgbotapi.NewBotAPI("5683591475:AAFytu0DXkSIYAnfj9c7MPCjtNj9QXeNK8M")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -194,15 +207,35 @@ func main() {
 
 	for update := range updates {
 		if update.Message != nil {
-
+			log.Printf("USER ID %d", update.Message.Chat.ID)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+
+			if !findInScreamersList(update.Message.Chat.ID) {
+				if _, err := strconv.Atoi(update.Message.Text); err == nil && len(update.Message.Text) < 5 {
+					if update.Message.Text == "2222" {
+						if addToScreamersList(update.Message.Chat.ID) {
+							msg.Text = "Вы уже были добавлены в список получения!"
+						} else {
+							msg.Text = fmt.Sprintf("Вы добавлены в список получения! Ваш номер: %d", screamersCount)
+						}
+					} else {
+
+						msg.Text = "Не корректный пин-код!"
+					}
+				} else {
+					msg.Text = "Не корректный пин-код!!!!"
+				}
+
+			} else {
+				msg.Text = "Вы уже были добавлены в список получения!"
+			}
 
 			switch update.Message.Command() {
 			case "start":
-				if addToScreamersList(update.Message.Chat.ID) {
+				if findInScreamersList(update.Message.Chat.ID) {
 					msg.Text = "Вы уже были добавлены в список получения!"
 				} else {
-					msg.Text = fmt.Sprintf("Вы добавлены в список получения! Ваш номер: %d", screamersCount)
+					msg.Text = "Вы не авторизованны! Пожалуйста введите Пин-код: "
 				}
 			case "stop":
 				if delFromScreamersList(update.Message.Chat.ID) {
@@ -211,15 +244,25 @@ func main() {
 					msg.Text = "Вы уже были удалены из списка на получение!"
 				}
 			case "coord":
-				coordinatorId = update.Message.Chat.ID
-				haveCoord = true
-				delFromScreamersList(update.Message.Chat.ID)
-				msg.Text = "Вы назначены координатором!"
+				if findInScreamersList(update.Message.Chat.ID) {
+					if haveCoord {
+						textMsgToCoordinator := fmt.Sprintf("Координатор был изменён!")
+						msg := tgbotapi.NewMessage(coordinatorId, textMsgToCoordinator)
+
+						if _, err := bot.Send(msg); err != nil {
+							panic(err)
+						}
+					}
+					coordinatorId = update.Message.Chat.ID
+					haveCoord = true
+					delFromScreamersList(update.Message.Chat.ID)
+					msg.Text = "Вы назначены координатором!"
+				} else {
+					msg.Text = "Вы не авторизованы!"
+				}
 			case "stopcoord":
 				haveCoord = false
 				msg.Text = "Координатор отключен!"
-			default:
-				msg.Text = "Ошибка! Команда не найдена!"
 			}
 
 			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
