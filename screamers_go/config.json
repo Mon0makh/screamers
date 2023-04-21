@@ -1,0 +1,8 @@
+{
+    "db_link": "mongodb+srv://admin-v2:dTEJ8hum0jfTH8bH@testcluster.prws5fu.mongodb.net/test",
+    "bot_token": "5683591475:AAFytu0DXkSIYAnfj9c7MPCjtNj9QXeNK8M",
+    "http_server_port": ":8090",
+    "pin_code": "1122",
+    "database_name": "screamers",
+    "database_collection": "runners"
+}

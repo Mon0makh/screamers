@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +16,7 @@ var bot *tgbotapi.BotAPI
 var chatsList []int64
 var runnersSendList [50]string
 var sendedNow = 0
+var config map[string]string
 
 func findIdInList(chatId int64) bool {
 	var findFlag = false
@@ -37,27 +40,41 @@ func findRunnerInList(numb string) bool {
 }
 
 func getRunnerNumber(numb string) {
-	requestURL := fmt.Sprintf("http://127.0.0.1:8090/numb/?numb=%s", numb)
+	requestURL := fmt.Sprintf("%s/numb/?numb=%s", config["http_server"], numb)
 	res, err := http.Get(requestURL)
 	if err != nil {
 		fmt.Printf("error making http request: %s\n", err)
-		os.Exit(1)
+		return
+	}
+	log.Printf("client: status code: %d\n", res.StatusCode)
+
+}
+func initConfig() {
+
+	file, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	contents, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	log.Printf("client: got response!\n")
-	log.Printf("client: status code: %d\n", res.StatusCode)
+	err = json.Unmarshal(contents, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
 
 func main() {
-
+	initConfig()
 	// BOT
-	bot, err := tgbotapi.NewBotAPI("6086471341:AAHmDf8Ypi2PxHo_nM-tZ3iJRQfDWmdo0uw")
+	bot, err := tgbotapi.NewBotAPI(config["bot_token"])
 	if err != nil {
 		log.Panic(err)
 	}
-
-	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
@@ -70,10 +87,10 @@ func main() {
 		if update.Message == nil {
 			continue
 		}
+		chatId := update.Message.Chat.ID
+		msg := tgbotapi.NewMessage(chatId, "")
 
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-
-		if findIdInList(update.Message.Chat.ID) {
+		if findIdInList(chatId) {
 			if _, err := strconv.Atoi(update.Message.Text); err == nil && len(update.Message.Text) < 5 {
 				if findRunnerInList(update.Message.Text) {
 					msg.Text = "Номер уже был введён ранее!"
@@ -90,7 +107,7 @@ func main() {
 				msg.Text = "Не корректный номер!!!"
 			}
 		} else {
-			if update.Message.Text == "11111" {
+			if update.Message.Text == config["pin_code"] {
 				chatsList = append(chatsList, update.Message.Chat.ID)
 				msg.Text = "Вы успешно авторизованы! Можете продолжить работу!"
 			} else {
@@ -100,7 +117,7 @@ func main() {
 
 		switch update.Message.Command() {
 		case "start":
-			if findIdInList(update.Message.Chat.ID) {
+			if findIdInList(chatId) {
 				msg.Text = "Вы уже были добавлены в список операторов!"
 			} else {
 				msg.Text = "Вы не авторизованны! Пожалуйста введите Пин-код: "
@@ -108,7 +125,7 @@ func main() {
 
 		}
 
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		log.Printf("[%s %d] %s", update.Message.From.FirstName, chatId, update.Message.Text)
 
 		bot.Send(msg)
 
