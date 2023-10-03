@@ -1,5 +1,6 @@
 {
-    "db_link": "mongodb+srv://admin-v2:dTEJ8hum0jfTH8bH@testcluster.prws5fu.mongodb.net/test",
+    "db_link": "mongodb+srv://dev:D1675dOcw3qmkIKB@cluster0.zb1p3ac.mongodb.net/?retryWrites=true&w=majority",
+    
     "bot_token": "5683591475:AAFytu0DXkSIYAnfj9c7MPCjtNj9QXeNK8M",
     "http_server_port": ":8090",
     "pin_code": "1122",

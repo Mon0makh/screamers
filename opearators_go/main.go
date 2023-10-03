@@ -91,7 +91,7 @@ func main() {
 		msg := tgbotapi.NewMessage(chatId, "")
 
 		if findIdInList(chatId) {
-			if _, err := strconv.Atoi(update.Message.Text); err == nil && len(update.Message.Text) < 5 {
+			if _, err := strconv.Atoi(update.Message.Text); err == nil && len(update.Message.Text) < 6 {
 				if findRunnerInList(update.Message.Text) {
 					msg.Text = "Номер уже был введён ранее!"
 				} else {
